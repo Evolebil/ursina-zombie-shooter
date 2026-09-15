@@ -2,6 +2,7 @@ from ursina import *
 from ursina.prefabs.first_person_controller import FirstPersonController
 import random
 import math
+from panda3d.core import globalClock
 
 # ============================================================================
 # КОНФИГУРАЦИЯ
@@ -188,7 +189,7 @@ class Player:
     
     def shoot(self):
         """Выстрел из текущего оружия (raycast)."""
-        current_time = time.time()
+        current_time = globalClock.getFrameTime()
         current_weapon_key = WEAPON_ORDER[game_state.current_weapon]
         weapon_data = WEAPONS[current_weapon_key]
         
@@ -234,21 +235,21 @@ class Zombie:
         )
         self.last_attack_time = 0
     
-    def update(self, player_pos):
+    def update(self, player_pos, dt):
         """Обновляет поведение зомби."""
         if self.hp <= 0:
             return
         
         # Движение к игроку
         direction = (player_pos - self.position).normalized()
-        self.position += direction * ZOMBIE_SPEED * time.dt()
+        self.position += direction * ZOMBIE_SPEED * dt
         self.model.position = self.position
         
         # Проверка расстояния для атаки
         distance = distance_between(self.position, player_pos)
         if distance < 2:
             # Зомби может атаковать
-            current_time = time.time()
+            current_time = globalClock.getFrameTime()
             if current_time - self.last_attack_time >= ZOMBIE_ATTACK_COOLDOWN:
                 self.attack()
                 self.last_attack_time = current_time
@@ -302,7 +303,7 @@ def update_spawn():
     if game_state.game_over:
         return
     
-    current_time = time.time()
+    current_time = globalClock.getFrameTime()
     
     # Вычисляем интервал в зависимости от количества убитых
     spawn_interval = max(
@@ -386,7 +387,7 @@ def restart_game():
     player.controller.position = Vec3(*PLAYER_START_POS)
     
     # Запускаем спавн
-    game_state.last_spawn_time = time.time()
+    game_state.last_spawn_time = globalClock.getFrameTime()
 
 # ============================================================================
 # ГЛАВНЫЙ ИГРОВОЙ ЦИКЛ
@@ -403,6 +404,9 @@ def game_update():
     # Обновляем спавн
     update_spawn()
     
+    # Получаем delta time
+    dt = globalClock.getDeltaTime()
+    
     # Обновляем зомби
     player_pos = player.controller.position
     
@@ -410,7 +414,7 @@ def game_update():
     game_state.zombies = [z for z in game_state.zombies if z.hp > 0]
     
     for zombie in game_state.zombies:
-        zombie.update(player_pos)
+        zombie.update(player_pos, dt)
     
     # Обработка выстрела
     if held_keys['left mouse']:
@@ -455,7 +459,7 @@ def init_game():
     update_ui()
     
     # Инициализируем спавн
-    game_state.last_spawn_time = time.time()
+    game_state.last_spawn_time = globalClock.getFrameTime()
 
 init_game()
 
