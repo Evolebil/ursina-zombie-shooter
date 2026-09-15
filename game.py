@@ -2,7 +2,6 @@ from ursina import *
 from ursina.prefabs.first_person_controller import FirstPersonController
 import random
 import math
-from panda3d.core import globalClock
 
 # ============================================================================
 # КОНФИГУРАЦИЯ
@@ -158,6 +157,7 @@ class Player:
             sensitivity=10
         )
         self.weapon_model = self.create_weapon_model()
+        self.last_shot_time = 0
     
     def create_weapon_model(self):
         """Создаёт простую визуальную модель оружия перед камерой."""
@@ -189,14 +189,15 @@ class Player:
     
     def shoot(self):
         """Выстрел из текущего оружия (raycast)."""
-        current_time = globalClock.getFrameTime()
         current_weapon_key = WEAPON_ORDER[game_state.current_weapon]
         weapon_data = WEAPONS[current_weapon_key]
         
-        if current_time - game_state.last_shot_time < weapon_data['cooldown']:
+        # Проверка cooldown
+        time_since_shot = time.time() - self.last_shot_time
+        if time_since_shot < weapon_data['cooldown']:
             return
         
-        game_state.last_shot_time = current_time
+        self.last_shot_time = time.time()
         
         # Стрельба
         for _ in range(weapon_data['rays']):
@@ -204,7 +205,7 @@ class Player:
             spread_x = random.uniform(-weapon_data['spread'], weapon_data['spread'])
             spread_y = random.uniform(-weapon_data['spread'], weapon_data['spread'])
             
-            # Направление луча от камеры (используем .forward(), это свойство, не функция)
+            # Направление луча от камеры (используем .forward, это свойство, не функция)
             cam_forward = camera.forward
             direction = cam_forward + Vec3(spread_x, spread_y, 0)
             direction = direction.normalized()
@@ -234,7 +235,7 @@ class Zombie:
             position=self.position,
             collider='box'
         )
-        self.last_attack_time = 0
+        self.last_attack_time = time.time()
     
     def update(self, player_pos, dt):
         """Обновляет поведение зомби."""
@@ -250,7 +251,7 @@ class Zombie:
         distance = distance_between(self.position, player_pos)
         if distance < 2:
             # Зомби может атаковать
-            current_time = globalClock.getFrameTime()
+            current_time = time.time()
             if current_time - self.last_attack_time >= ZOMBIE_ATTACK_COOLDOWN:
                 self.attack()
                 self.last_attack_time = current_time
@@ -304,7 +305,7 @@ def update_spawn():
     if game_state.game_over:
         return
     
-    current_time = globalClock.getFrameTime()
+    current_time = time.time()
     
     # Вычисляем интервал в зависимости от количества убитых
     spawn_interval = max(
@@ -388,25 +389,31 @@ def restart_game():
     player.controller.position = Vec3(*PLAYER_START_POS)
     
     # Запускаем спавн
-    game_state.last_spawn_time = globalClock.getFrameTime()
+    game_state.last_spawn_time = time.time()
 
 # ============================================================================
 # ГЛАВНЫЙ ИГРОВОЙ ЦИКЛ
 # ============================================================================
 
+last_frame_time = time.time()
+
 def game_update():
     """Основное обновление игры."""
+    global last_frame_time
+    
     if game_state.game_over:
         return
+    
+    # Вычисляем delta time
+    current_time = time.time()
+    dt = current_time - last_frame_time
+    last_frame_time = current_time
     
     # Обновляем UI
     update_ui()
     
     # Обновляем спавн
     update_spawn()
-    
-    # Получаем delta time
-    dt = globalClock.getDeltaTime()
     
     # Обновляем зомби
     player_pos = player.controller.position
@@ -460,7 +467,7 @@ def init_game():
     update_ui()
     
     # Инициализируем спавн
-    game_state.last_spawn_time = globalClock.getFrameTime()
+    game_state.last_spawn_time = time.time()
 
 init_game()
 
