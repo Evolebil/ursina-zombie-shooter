@@ -204,12 +204,13 @@ class Player:
             spread_x = random.uniform(-weapon_data['spread'], weapon_data['spread'])
             spread_y = random.uniform(-weapon_data['spread'], weapon_data['spread'])
             
-            # Направление луча от камеры
-            direction = camera.forward() + Vec3(spread_x, spread_y, 0)
+            # Направление луча от камеры (используем .forward(), это свойство, не функция)
+            cam_forward = camera.forward
+            direction = cam_forward + Vec3(spread_x, spread_y, 0)
             direction = direction.normalized()
             
             # Raycast
-            hit_info = raycast(camera.position(), direction, distance=1000, ignore=[player.controller])
+            hit_info = raycast(camera.position, direction, distance=1000, ignore=[player.controller])
             
             if hit_info.hit:
                 # Проверяем, попали ли в зомби
